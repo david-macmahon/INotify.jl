@@ -1,5 +1,7 @@
 module INotify
 
+using FileWatching
+
 export inotify_open
 export inotify_close
 export inotify_add_watch
@@ -9,58 +11,61 @@ export inotify_read_events
 include("event.jl")
 
 function inotify_open()
-    @ccall inotify_init()::Cint
+    fd = @ccall inotify_init1(O_NONBLOCK::Cint)::Cint
+    fd != -1 || systemerror("inotify_init1")
+    RawFD(fd)
 end
 
 function inotify_open(pathname, mask)
-    inotify = inotify_open()
-    inotify, inotify_add_watch(inotify, pathname, mask)
+    fd = inotify_open()
+    fd, inotify_add_watch(fd, pathname, mask)
 end
 
 function inotify_open(f::Function)
-    inotify = inotify_open()
+    fd = inotify_open()
     local retval
     try
-        retval = f(inotify)
+        retval = f(fd)
     finally
-        inotify_close(inotify)
+        inotify_close(fd)
     end
     retval
 end
 
 function inotify_open(f::Function, pathname, mask)
-    inotify, wd = inotify_open(pathname, mask)
+    fd, wd = inotify_open(pathname, mask)
     local retval
     try
-        retval = f(inotify, wd)
+        retval = f(fd, wd)
     finally
-        inotify_rm_watch(inotify, wd)
-        inotify_close(inotify)
+        inotify_rm_watch(fd, wd)
+        inotify_close(fd)
     end
     retval
 end
 
-function inotify_close(inotify)
-    rc = @ccall close(inotify::Cint)::Cint
+function inotify_close(fd)
+    rc = @ccall close(fd::Cint)::Cint
     rc == 0 || systemerror("close")
     nothing
 end
 
-function inotify_add_watch(inotify, pathname, mask)
-    wd = @ccall inotify_add_watch(inotify::Cint, pathname::Cstring, mask::Cuint)::Cint
+function inotify_add_watch(fd, pathname, mask)
+    wd = @ccall inotify_add_watch(fd::Cint, pathname::Cstring, mask::Cuint)::Cint
     wd != -1 || systemerror("inotify_add_watch")
     wd
 end
 
-function inotify_rm_watch(inotify, wd)
-    rc = @ccall inotify_rm_watch(inotify::Cint, wd::Cint)::Cint
+function inotify_rm_watch(fd, wd)
+    rc = @ccall inotify_rm_watch(fd::Cint, wd::Cint)::Cint
     rc == 0 || systemerror("inotify_rm_watch")
     nothing
 end
 
-function inotify_read_events(f::Function, inotify, buf=Array{UInt8}(undef, 4096); loopwhile=()->true)
+function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096); loopwhile=()->true)
     while true
-        len = @ccall read(inotify::Cint, buf::Ptr{Cvoid}, sizeof(buf)::Csize_t)::Cint
+        wait(fd, readable=true)
+        len = @ccall read(fd::Cint, buf::Ptr{Cvoid}, sizeof(buf)::Csize_t)::Cint
         if len == -1 && Libc.errno() != Libc.EAGAIN
             systemerror("inotify")
         end
@@ -86,13 +91,13 @@ function inotify_read_events(f::Function, inotify, buf=Array{UInt8}(undef, 4096)
     end
 end
 
-function inotify_read_events(inotify, buf=Array{UInt8}(undef, 4096))
+function inotify_read_events(fd, buf=Array{UInt8}(undef, 4096))
     # Vector for returned (event, name) tuples
     events = Tuple{Event,String}[]
 
-    # Call inotify with looping disabled so it will only perform one read (which
-    # may return multiple events).
-    inotify_read_events(inotify, buf, loopwhile=()->false) do ev, name
+    # Call inotify_read_events with looping disabled so it will only perform one
+    # read (which may return multiple events).
+    inotify_read_events(fd, buf, loopwhile=()->false) do ev, name
         push!(events, (ev, name))
     end
 
