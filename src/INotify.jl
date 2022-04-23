@@ -7,13 +7,31 @@ export inotify_close
 export inotify_add_watch
 export inotify_rm_watch
 export inotify_read_events
+export inotify_notify
 
 include("event.jl")
+
+# Every inotify instance has a unique "sentinal file" created for it and an OPEN
+# watch is created on this sentinal file.  Events can be generated on any
+# inotify instance, for example by passing its sentinal file to `touch()`.
+
+# SENTINALS is a Dict mapping inotify instances (RawFD) to named tuples
+# containing `path` and `wd` fields.
+const SENTINALS = Dict{RawFD, NamedTuple{(:path, :wd), Tuple{String, Int64}}}()
 
 function inotify_open()
     fd = @ccall inotify_init1(O_NONBLOCK::Cint)::Cint
     fd != -1 || systemerror("inotify_init1")
-    RawFD(fd)
+    inotify = RawFD(fd)
+
+    # Create sentinal file for this inotify instance
+    path, io = mktemp()
+    close(io)
+    # Create "OPEN" watch on the sentinal file
+    wd = inotify_add_watch(inotify, path, OPEN)
+    SENTINALS[inotify] = (path=path, wd=wd)
+
+    inotify
 end
 
 function inotify_open(pathname, mask)
@@ -62,32 +80,30 @@ function inotify_rm_watch(fd, wd)
     nothing
 end
 
-function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096); loopwhile=()->true)
-    while true
-        wait(fd, readable=true)
-        len = @ccall read(fd::Cint, buf::Ptr{Cvoid}, sizeof(buf)::Csize_t)::Cint
-        if len == -1 && Libc.errno() != Libc.EAGAIN
-            systemerror("inotify")
-        end
+function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096))
+    wait(fd, readable=true)
+    len = @ccall read(fd::Cint, buf::Ptr{Cvoid}, sizeof(buf)::Csize_t)::Cint
+    if len == -1 && Libc.errno() != Libc.EAGAIN
+        systemerror("inotify")
+    end
 
-        # Pointer to event struct(s) in buf
-        pev = Ptr{Event}(pointer(buf))
-        # Pointer just past end of returned data
-        # Pointer arithmatic is always byte-wise in Julia!
-        pend = pev + len
-        while pev < pend
-            ev = unsafe_load(pev)
-            name = ev.len > 0 ? unsafe_string(Ptr{UInt8}(pev)+sizeof(Event)) : ""
+    # Pointer to event struct(s) in buf
+    pev = Ptr{Event}(pointer(buf))
+    # Pointer just past end of returned data
+    # Pointer arithmatic is always byte-wise in Julia!
+    pend = pev + len
+    while pev < pend
+        ev = unsafe_load(pev)
+        name = ev.len > 0 ? unsafe_string(Ptr{UInt8}(pev)+sizeof(Event)) : ""
 
+        # Ignore events on the sentinal watch
+        if ev.wd != SENTINALS[fd].wd
             f(ev, name)
-
-            # Step pev past current event (and name, if any)
-            # Pointer arithmatic is always byte-wise in Julia!
-            pev += sizeof(Event) + ev.len
         end
 
-        # Break out of loop if loopwhile() returns false
-        loopwhile() || break
+        # Step pev past current event (and name, if any)
+        # Pointer arithmatic is always byte-wise in Julia!
+        pev += sizeof(Event) + ev.len
     end
 end
 
@@ -95,13 +111,25 @@ function inotify_read_events(fd, buf=Array{UInt8}(undef, 4096))
     # Vector for returned (event, name) tuples
     events = Tuple{Event,String}[]
 
-    # Call inotify_read_events with looping disabled so it will only perform one
-    # read (which may return multiple events).
-    inotify_read_events(fd, buf, loopwhile=()->false) do ev, name
+    inotify_read_events(fd, buf) do ev, name
         push!(events, (ev, name))
     end
 
     return events
+end
+
+# Generate an event on `inotify`'s sentinal file.  This will unblock tasks that
+# are blocking on `inotify` in inotify_read_events().
+function inotify_notify(inotify)
+    open(close, SENTINALS[inotify].path)
+end
+
+# Generate an event on all sentinal file.  This will unblock tasks that are
+# blocking on any inotify instance in inotify_read_events().
+function inotify_notify()
+    for v in values(SENTINALS)
+        open(close, v.path)
+    end
 end
 
 end # module INotify
