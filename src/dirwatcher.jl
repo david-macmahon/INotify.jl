@@ -6,9 +6,8 @@ struct DirWatcher
     task::Ref{Task}
 
     function DirWatcher(f::Function, dir, mask=ALL_EVENTS)
-        # Have to watch for CREATE and DELETE_SELF to watch/unwatch new/deleted subdirs
+        # Have to watch for CREATE to watch new subdirs
         mask |= CREATE
-        mask |= DELETE_SELF
 
         fd = inotify_open()
 
