@@ -108,7 +108,9 @@ function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096))
 
         # Ignore events on the sentinal watch
         if ev.wd != SENTINALS[fd].wd
-            f(ev, name)
+            @debug "calling inotify_read_events client function"
+            f((event=ev, name=name))
+            @debug "back from inotify_read_events client function"
         end
 
         # Step pev past current event (and name, if any)
@@ -121,7 +123,7 @@ function inotify_read_events(fd, buf=Array{UInt8}(undef, 4096))
     # Vector for returned (event, name) tuples
     events = Tuple{Event,String}[]
 
-    inotify_read_events(fd, buf) do ev, name
+    inotify_read_events(fd, buf) do (ev, name)
         push!(events, (ev, name))
     end
 
