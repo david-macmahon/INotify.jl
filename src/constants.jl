@@ -31,6 +31,9 @@ const MASK_ADD       = 0x20000000  # add to the mask of an already existing watc
 const ISDIR          = 0x40000000  # event occurred against dir
 const ONESHOT        = 0x80000000  # only send event once
 
+# INotify special flag
+const CREATE_DIR = (CREATE | ISDIR)
+
 # All of the events - we build the list by hand so that we can add flags in
 # the future and not break backward compatibility.  Apps will get only the
 # events that they originally wanted.  Be sure to add new events here!
