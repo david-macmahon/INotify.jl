@@ -13,7 +13,7 @@ struct DirWatcher
 
         watches = Dict{Int32, String}()
         for (root, dirs, files) in walkdir(dir, topdown=false)
-            @info "adding watch for $root mask $mask"        
+            @debug "adding watch for $root mask $mask"
             wd = inotify_add_watch(fd, root, mask)
             watches[wd] = root
         end
@@ -22,9 +22,9 @@ struct DirWatcher
 
         dirwatcher = new(fd, mask, watches, run, Ref{Task}())
         dirwatcher.task[] = @async begin
-            @info "watcher task for $fd starting"
+            @debug "watcher task for $fd starting"
             watch_dir_loop($f, $dirwatcher)
-            @info "watcher task for $fd ending"
+            @debug "watcher task for $fd ending"
         end
 
         dirwatcher
