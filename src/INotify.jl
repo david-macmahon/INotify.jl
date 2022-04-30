@@ -92,8 +92,8 @@ end
 
 function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096))
     wait(fd, readable=true)
-    len = @ccall read(fd::Cint, buf::Ptr{Cvoid}, sizeof(buf)::Csize_t)::Cint
-    if len == -1 && Libc.errno() != Libc.EAGAIN
+    nbytes = @ccall read(fd::Cint, buf::Ptr{Cvoid}, sizeof(buf)::Csize_t)::Cint
+    if nbytes == -1 && Libc.errno() != Libc.EAGAIN
         systemerror("inotify")
     end
 
@@ -101,7 +101,7 @@ function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096))
     pev = Ptr{Event}(pointer(buf))
     # Pointer just past end of returned data
     # Pointer arithmatic is always byte-wise in Julia!
-    pend = pev + len
+    pend = pev + nbytes
     while pev < pend
         ev = unsafe_load(pev)
         name = ev.len > 0 ? unsafe_string(Ptr{UInt8}(pev)+sizeof(Event)) : ""
