@@ -27,6 +27,7 @@ function inotify_open()
     # Create sentinal file for this inotify instance
     path, io = mktemp()
     close(io)
+
     # Create "OPEN" watch on the sentinal file
     wd = inotify_add_watch(inotify, path, OPEN)
     SENTINALS[inotify] = (path=path, wd=wd)
@@ -63,8 +64,17 @@ function inotify_open(f::Function, pathname, mask)
 end
 
 function inotify_close(fd)
-    rc = @ccall close(fd::Cint)::Cint
-    rc == 0 || systemerror("close")
+    if haskey(SENTINALS, fd)
+        wd = SENTINALS[fd].wd
+        delete!(SENTINALS, fd)
+        try
+            # Unwatch the sentinal
+            inotify_rm_watch(fd, wd)
+        finally
+            rc = @ccall close(fd::Cint)::Cint
+            rc == 0 || systemerror("close")
+        end
+    end
     nothing
 end
 
