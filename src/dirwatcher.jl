@@ -32,6 +32,13 @@ struct DirWatcher
     end
 end
 
+const DirEventNameTuple = NamedTuple{(:dir, :event, :name),
+                               Tuple{AbstractString, INotify.Event, AbstractString}}
+
+function DirWatcher(channel::AbstractChannel, dir, mask=ALL_EVENTS)
+    DirWatcher((den)->put!(channel, den), dir, mask)
+end
+
 function watch_dir_loop(f::Function, dirwatcher::DirWatcher)
     buf=Array{UInt8}(undef, 4096)
     while dirwatcher.run[]
@@ -51,7 +58,7 @@ function watch_dir_loop(f::Function, dirwatcher::DirWatcher)
             end
 
             @debug "calling DirWatcher client function"
-            f((dir=dir, ev=ev, name=name))
+            f((dir=dir, event=ev, name=name))
             @debug "back from DirWatcher client function"
 
             # When a subdir is deleted, we do not have to call inotify_rm_watch
