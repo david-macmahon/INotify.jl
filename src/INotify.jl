@@ -10,6 +10,7 @@ export inotify_read_events
 export inotify_notify
 
 include("event.jl")
+include("dirwatcher.jl")
 
 # Every inotify instance has a unique "sentinal file" created for it and an OPEN
 # watch is created on this sentinal file.  Events can be generated on any
