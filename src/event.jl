@@ -22,12 +22,20 @@ FUNCFLAGS = (
     (:isdelete,       :DELETE),
     (:isdeleteself,   :DELETE_SELF),
     (:ismoveself,     :MOVE_SELF),
-    (:isdirevent,     :ISDIR)
+    (:isdirevent,     :ISDIR),
+    (:isunmount,      :UNMOUNT),
+    (:isqoverflow,    :Q_OVERFLOW),
+    (:isignored,      :IGNORED)
 )
 
 for (m,c) in FUNCFLAGS
-    @eval $m(ev) = ev.mask & $c != 0
+    @eval $m(mask::UInt32) = mask & $c != 0
+    @eval $m(ev::Event) = $m(ev.mask)
 end
+
+# This needs to AND the two flags, hence ==
+iscreatedir(mask::UInt32) = mask & CREATE_DIR == CREATE_DIR
+iscreatedir(ev::Event) = iscreatedir(ev.mask)
 
 function Base.show(io::IO, ev::Event)
     flags = filter(FUNCFLAGS) do (_,c)
