@@ -21,10 +21,12 @@ struct DirWatcher
         run = Ref(true)
 
         dirwatcher = new(fd, mask, watches, run, Ref{Task}())
-        dirwatcher.task[] = @async begin
-            @debug "watcher task for $fd starting"
-            watch_dir_loop($f, $dirwatcher; $kwargs...)
-            @debug "watcher task for $fd ending"
+        dirwatcher.task[] = disable_sigint() do
+            @async begin
+                @debug "watcher task for $fd starting"
+                watch_dir_loop($f, $dirwatcher; $kwargs...)
+                @debug "watcher task for $fd ending"
+            end
         end
 
         dirwatcher
