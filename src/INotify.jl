@@ -91,7 +91,7 @@ function inotify_rm_watch(fd, wd)
     nothing
 end
 
-function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096))
+function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096); kwargs...)
     wait(fd, readable=true)
     nbytes = @ccall read(fd::Cint, buf::Ptr{Cvoid}, sizeof(buf)::Csize_t)::Cint
     if nbytes == -1 && Libc.errno() != Libc.EAGAIN
@@ -110,7 +110,7 @@ function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096))
         # Ignore events on the sentinal watch
         if ev.wd != SENTINALS[fd].wd
             @debug "calling inotify_read_events client function"
-            f((event=ev, name=name))
+            f((event=ev, name=name); kwargs...)
             @debug "back from inotify_read_events client function"
         end
 
