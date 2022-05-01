@@ -23,8 +23,10 @@ struct DirWatcher
         dirwatcher = new(fd, mask, watches, run, Ref{Task}())
         dirwatcher.task[] = @async begin
             @debug "watcher task for $fd starting"
-            disable_sigint() do
+            try
                 watch_dir_loop($f, $dirwatcher; $kwargs...)
+            catch e
+                e isa InterruptException || rethrow()
             end
             @debug "watcher task for $fd ending"
         end
