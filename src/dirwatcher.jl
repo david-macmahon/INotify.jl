@@ -5,7 +5,7 @@ struct DirWatcher
     run::Ref{Bool}
     task::Ref{Task}
 
-    function DirWatcher(f::Function, dir, mask=ALL_EVENTS)
+    function DirWatcher(f::Function, dir, mask=ALL_EVENTS; kwargs...)
         # Have to watch for CREATE to watch new subdirs
         mask |= CREATE
 
@@ -23,7 +23,7 @@ struct DirWatcher
         dirwatcher = new(fd, mask, watches, run, Ref{Task}())
         dirwatcher.task[] = @async begin
             @debug "watcher task for $fd starting"
-            watch_dir_loop($f, $dirwatcher)
+            watch_dir_loop($f, $dirwatcher; $kwargs...)
             @debug "watcher task for $fd ending"
         end
 
@@ -38,7 +38,7 @@ function DirWatcher(channel::AbstractChannel, dir, mask=ALL_EVENTS)
     DirWatcher((den)->put!(channel, den), dir, mask)
 end
 
-function watch_dir_loop(f::Function, dirwatcher::DirWatcher)
+function watch_dir_loop(f::Function, dirwatcher::DirWatcher; kwargs...)
     buf=Array{UInt8}(undef, 4096)
     while dirwatcher.run[]
         @debug "watch_dir_loop for $fd calling inotify_read_events"
@@ -57,7 +57,7 @@ function watch_dir_loop(f::Function, dirwatcher::DirWatcher)
             end
 
             @debug "calling DirWatcher client function"
-            f((dir=dir, event=ev, name=name))
+            f((dir=dir, event=ev, name=name); kwargs...)
             @debug "back from DirWatcher client function"
 
             # When a subdir is deleted, we do not have to call inotify_rm_watch

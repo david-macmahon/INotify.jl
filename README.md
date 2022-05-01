@@ -23,16 +23,16 @@ directory tree for file events.
 The high level interface is primarily through the `INotify.DirWatcher`
 structure.  Creating a `DirWatcher` structure also creates an asynchronous Task
 that waits for inotify events and then either passes them to a user supplied
-function or `put!`s them into a user supplied `Channel`.  The other parameters
-required to create a DirWatcher structure are the name of the directory to watch
-and a bit mask that specifies which events should be watched for.  See
-`src/constants.jl` for a complete list of events.  Multiple event types may be
-specified by bitwise OR'ing their constants together.  If the event mask is not
-given, `DirWatcher` will watch for all events.
+"callback" function or `put!`s them into a user supplied `Channel`.  The other
+parameters required to create a DirWatcher structure are the name of the
+directory to watch and a bit mask that specifies which events should be watched
+for.  See `src/constants.jl` for a complete list of events.  Multiple event
+types may be specified by bitwise OR'ing their constants together.  If the event
+mask is not given, `DirWatcher` will watch for all events.
 
 When a file system event occurs, a named tuple will be passed to the user
-supplied function or `put!` on the user supplied `Channel`.  The named tuple has
-these fields:
+supplied callback function or `put!` on the user supplied `Channel`.  The named
+tuple has these fields:
 
 - `dir` Name of the directory in which the event occured
 - `event` `INotify.Event` structure for the event
@@ -47,14 +47,19 @@ The `INotify.Event` structure contains these fields:
 
 Generally, the `mask` field will be the most useful.
 
-`DirWatcher` will automatically add watches for newly created directories.  It
-is possible for file events to occur in the new directory before the watch gets
-added.  This race condition in inherent in the underlying inotify system.  See
-`man inotify` for on your Linux system for more information.
+When passing a callback function to `DirWatcher`, keyword arguments may also be
+passed to `DirWatcher` and these keyword arguments will be passed to the
+callback function as keyword arguments.  This can be useful passing context to
+the callback function (e.g. a database connection object).
 
 For use with a `Channel`, one can use the generic `Channel{Any}` that can hold any
 type or the more type specific `Channel{Inotify.DirEventNameTuple}` type that
 holds the specific type of named tuple used by DirWatcher.
+
+`DirWatcher` will automatically add watches for newly created directories.  It
+is possible for file events to occur in the new directory before the watch gets
+added.  This race condition in inherent in the underlying inotify system.  See
+`man inotify` for on your Linux system for more information.
 
 The `DirWatcher` instance can be passed to `close()` to stop watching and to end
 the asynchronous Task.
