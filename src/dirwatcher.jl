@@ -25,10 +25,12 @@ struct DirWatcher
             @debug "watcher task for $fd starting"
             try
                 watch_dir_loop($f, $dirwatcher; $kwargs...)
-            catch e
-                e isa InterruptException || rethrow()
+            catch ex
+                @error "async DirWatcher task caught exception" ex
+                ex isa InterruptException || rethrow()
+            finally
+                @debug "watcher task for $fd ending"
             end
-            @debug "watcher task for $fd ending"
         end
 
         dirwatcher
