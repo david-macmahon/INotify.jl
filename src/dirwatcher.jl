@@ -22,14 +22,19 @@ struct DirWatcher
 
         dirwatcher = new(fd, mask, watches, run, Ref{Task}())
         dirwatcher.task[] = @async begin
-            @debug "watcher task for $fd starting"
+            @info "watcher task for $fd starting"
             try
                 watch_dir_loop($f, $dirwatcher; $kwargs...)
             catch ex
                 @error "async DirWatcher task caught exception" ex
-                ex isa InterruptException || rethrow()
+                if !(ex isa InterruptException)
+                    for (exc, bt) in Base.catch_stack()
+                        showerror(stderr, exc, bt)
+                        println(stderr)
+                    end
+                end
             finally
-                @debug "watcher task for $fd ending"
+                @info "watcher task for $fd ending"
             end
         end
 

@@ -109,7 +109,7 @@ function inotify_read_events(f::Function, fd, buf=Array{UInt8}(undef, 4096); kwa
 
         # Ignore events on the sentinal watch
         if ev.wd != SENTINALS[fd].wd
-            @debug "calling inotify_read_events client function"
+            @debug "calling inotify_read_events client function" ev name
             f((event=ev, name=name); kwargs...)
             @debug "back from inotify_read_events client function"
         end
