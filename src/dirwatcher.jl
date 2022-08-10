@@ -88,7 +88,7 @@ function add_watch(f, dirwatcher::DirWatcher, dir::AbstractString; kwargs...)
     # directories.
     for (subdir, _, _) in walkdir(dir)
         subdir == dir && continue
-        add_watch(f, dirwatcher, subdir; kwargs...)
+        haskey(dirwatcher.dirs, subdir) || add_watch(f, dirwatcher, subdir; kwargs...)
     end
 end
 
@@ -107,7 +107,7 @@ function watch_dir_loop(f::Function, dirwatcher::DirWatcher; kwargs...)
             if iscreatedir(ev)
                 # Add watch for new dir to dirwatcher
                 subdir = joinpath(dir, name)
-                add_watch(f, dirwatcher, subdir; kwargs...)
+                haskey(dirwatcher.dirs, subdir) || add_watch(f, dirwatcher, subdir; kwargs...)
             else # otherwise just call `f`
                 @debug "calling DirWatcher client function"
                 f((dir=dir, event=ev, name=name); kwargs...)
