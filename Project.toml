@@ -1,7 +1,7 @@
 name = "INotify"
 uuid = "9e73f634-81c6-42cf-8211-fb9f7b28b16d"
 authors = ["David MacMahon <davidm@astro.berkeley.edu> and contributors"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 FileWatching = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
