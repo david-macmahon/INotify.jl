@@ -1,7 +1,7 @@
 name = "INotify"
 uuid = "9e73f634-81c6-42cf-8211-fb9f7b28b16d"
 authors = ["David MacMahon <davidm@astro.berkeley.edu> and contributors"]
-version = "0.2.0"
+version = "0.2.1"
 
 [compat]
 julia = "1.6"
