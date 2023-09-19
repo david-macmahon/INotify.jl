@@ -6,7 +6,7 @@ struct DirWatcher
     run::Ref{Bool}
     task::Ref{Task}
 
-    function DirWatcher(f::Function, dir, mask=ALL_EVENTS; kwargs...)
+    function DirWatcher(f::Function, dirlist, mask=ALL_EVENTS; kwargs...)
         # Have to watch for CREATE to watch new subdirs
         mask |= CREATE
 
@@ -19,7 +19,7 @@ struct DirWatcher
         dirwatcher = new(fd, mask, watches, dirs, run, Ref{Task}())
 
         # Use add_watch() to add dir and all subdirs recursively
-        add_watch(f, dirwatcher, dir; kwargs...)
+        add_watch.(f, Ref(dirwatcher), dirlist; kwargs...)
 
         dirwatcher.task[] = @async begin
             @info "watcher task for $fd starting"
