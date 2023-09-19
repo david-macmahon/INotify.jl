@@ -1,7 +1,5 @@
 module INotify
 
-using FileWatching
-
 export inotify_open
 export inotify_close
 export inotify_add_watch
