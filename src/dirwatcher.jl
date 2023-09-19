@@ -99,6 +99,10 @@ function watch_dir_loop(f::Function, dirwatcher::DirWatcher; kwargs...)
         inotify_read_events(dirwatcher.fd, buf) do (ev, name)
             # Find directory corresponding to this event
             dir = get(dirwatcher.watches, ev.wd, nothing)
+            if dir === nothing
+                @info "no dir found for watch descriptor $(ev.wd), ignoring"
+                return
+            end
 
             # When a subdir is created in a watched directory, we have to call
             # inotify_add_watch to add a new watch to the new subdir.  We use
